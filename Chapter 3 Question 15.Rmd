@@ -1,0 +1,356 @@
+---
+title: "PM Take Home Exam"
+author: "Lai Jiang"
+date: "7/18/2020"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Chapter 3 question 15
+#a
+```{r}
+library(MASS)
+View(Boston)
+attach(Boston)
+preds<-names(Boston)[-1]
+mods<-list()
+stats<-list()
+for (i in seq(along=preds)){
+  p<-preds[i]
+  mods[[i]] <- lm(as.formula(paste0("crim ~ ",p)),data=Boston)
+}
+stats<-t(sapply(mods, function(x) coef(summary(x))[2,]))
+r_squared<-sapply(mods,function(x) summary(x)$r.squared)
+stats<-cbind(stats,r_squared)
+rownames(stats) <-preds
+stats2<-stats[order(abs(stats[,"t value"]),decreasing=TRUE),]
+stats2
+plot(lm(crim~zn))
+plot(lm(crim~nox))
+plot(lm(crim~black))
+plot(lm(crim~medv))
+
+?pairs
+
+#most demonstrate a statisticall signifcant relationship with crim, except chas
+```
+```{r}
+#b
+limmulti=lm(crim~.,Boston)
+summary(limmulti)
+#I choose p=0.005, thus we reject null hypothesis H0 : βj = 0 for dis, rad, mdev
+
+```
+
+
+```{r}
+plot(stats[,1],coef(limmulti)[-1])
+cbind(stats[,1],coef(limmulti)[-1])
+#simple linear regression gave much larger coef for most of variables compare to multi linear regression. some even flip to positive or negative numbers.
+```
+
+```{r}
+
+lm.fit1=lm(crim~poly(zn,3))
+summary(lm.fit1)
+lm.fit2=lm(crim~poly(indus,3))
+summary(lm.fit2)
+lm.fit3=lm(crim~poly(nox,3))
+summary(lm.fit3)
+lm.fit4=lm(crim~poly(rm,3))
+summary(lm.fit4)
+lm.fit5=lm(crim~poly(age,3))
+summary(lm.fit5)
+lm.fit6=lm(crim~poly(dis,3))
+summary(lm.fit6)
+lm.fit7=lm(crim~poly(rad,3))
+summary(lm.fit7)
+lm.fit8=lm(crim~poly(tax,3))
+summary(lm.fit8)
+lm.fit9=lm(crim~poly(ptratio,3))
+summary(lm.fit9)
+lm.fit10=lm(crim~poly(black,3))
+summary(lm.fit10)
+lm.fit11=lm(crim~poly(lstat,3))
+summary(lm.fit11)
+lm.fit12=lm(crim~poly(medv,3))
+summary(lm.fit12)
+#Yes, there is evidence of non-linear association for many of the predictors. crim vs dis, crim, medv
+```
+```{r}
+## Chapter 6 question 9
+rm(list=ls())
+data(College,package="ISLR")
+n<-nrow(College)
+```
+
+
+```{r}
+#9(a)
+set.seed(1)
+train <- sample(1:n, n/2) #split the sample and testing into half and half
+test <- (-train)
+y.test <- College$Apps[test]
+y.train <- College$Apps[train]
+ref.err<-mean((mean(y.test)-y.test)^2)
+ref.err
+```
+
+```{r}
+#9(b)
+#fit a linear model using least square on the training set and report the test error obtained
+lm.mod <- lm(Apps ~ ., data=College[train,])
+lm.pred <- predict(lm.mod, College[test,])
+lm.err<-mean((lm.pred-y.test)^2)
+lm.err
+```
+```{r}
+#9(c)
+#fit a ridge regression model on the training set with lambda chosen by cross validation 
+set.seed(1)
+library(glmnet)
+x.mod <- model.matrix(Apps ~ ., data=College)[,-1]
+ridge.mod.cv<-cv.glmnet(x.mod[train,],y.train,alpha=0)
+ridge.best.lam <- ridge.mod.cv$lambda.min
+ridge.mod <- glmnet(x.mod[train,],y.train,alpha=0)
+ridge.pred <- predict(ridge.mod,newx=x.mod[test,],s=ridge.best.lam)
+ridge.err<-mean((ridge.pred-y.test)^2)
+ridge.err
+```
+```{r}
+#9(d)
+#fit a lasso model on the training set, with lambda chosen by cross validation.
+set.seed(1)
+x.mod <- model.matrix(Apps ~ ., data=College)[,-1]
+lasso.mod.cv <- cv.glmnet(x.mod[train,],y.train,alpha=1)
+lasso.best.lam <- lasso.mod.cv$lambda.min
+lasso.mod <- glmnet(x.mod[train,],y.train,alpha=1)
+lasso.pred <- predict(lasso.mod,newx=x.mod[test,],s=lasso.best.lam)
+(lasso.err<-mean((lasso.pred-y.test)^2))
+```
+```{r}
+##9(e) fit a PCR model on training set, with M chosen by cross validation
+library(pls)
+set.seed(1)
+pcr.mod <- pcr(Apps ~ ., data=College, subset=train, scale=TRUE, validation="CV")
+validationplot(pcr.mod,val.type="MSEP")
+```
+
+
+```{r}
+summary(pcr.mod)
+```
+```{r}
+pcr.pred <- predict(pcr.mod,College[test,],ncomp=16)
+pcr.err<-mean((pcr.pred-y.test)^2)
+pcr.err
+#17 components considered
+```
+
+```{r}
+##9(f)
+library(pls)
+set.seed(1)
+pls.mod <- plsr(Apps ~ ., data=College, subset=train, validation="CV")
+validationplot(pls.mod, val.type="MSEP")
+#roughly the same CV after 4 components
+```
+```{r}
+summary(pls.mod)
+pls.pred <- predict(pls.mod,College[test,],ncomp=4)
+pls.err<-mean((pls.pred-y.test)^2)
+```
+```{r}
+#9(g)
+rbind(ref.err,lm.err,ridge.err,lasso.err,pcr.err,pls.err)
+#as we can see lasso nd ridge performed better than PCR and PLS, linear model  performed better than PCR and PLS
+#Ridge was the best
+```
+
+## Chapter 6 question 11
+```{r}
+rm(list=ls())
+data(Boston,package="MASS")
+head(Boston)
+Boston.mat <- model.matrix(crim ~ ., Boston)
+```
+
+## split the set into test and training
+```{r}
+set.seed(1)
+train<-sample.int(nrow(Boston),size=nrow(Boston)*.5)
+test<--train
+y.train <- Boston$crim[train]
+y.test <- Boston$crim[test]
+```
+
+## linear models, use best subsets to select the best train set using BIC
+## then get the MSE on the test set
+
+```{r}
+require(leaps)
+full.fit <- regsubsets(crim ~ ., data=Boston[train,],nvmax=ncol(Boston))
+lm.best.coef <- coef(full.fit,id=which.min(summary(full.fit)$bic))
+lm.pred <- Boston.mat[test,names(lm.best.coef)]%*%lm.best.coef
+lm.err <- mean((lm.pred-y.test)^2)
+lm.err
+```
+
+```{r}
+full.lm.mod <- lm(crim ~ ., Boston, subset=train)
+lm.full.pred <- predict(full.lm.mod, Boston[test,])
+lm.full.err <- mean((lm.full.pred - y.test)^2)
+lm.full.err
+```
+## Ridge and Lasso using CV
+```{r}
+library(glmnet)
+runGlmNet <- function(alpha) {
+  set.seed(500)
+  cv <- cv.glmnet(Boston.mat[train,],y.train,alpha=alpha)
+  best.lam <- cv$lambda.min
+  mod <- glmnet(Boston.mat[train,],y.train,alpha=alpha)
+  pred <- predict(mod,newx=Boston.mat[test,],s=best.lam)
+  err<-mean((pred-y.test)^2)
+  list(mod=mod,cv=cv,best.lam=best.lam,err=err)
+}
+# RIDGE
+ridge.mod<-runGlmNet(0)
+ridge.mod$err
+```
+```{r}
+#Lasso
+lasso.mod<-runGlmNet(1)
+lasso.mod$err
+```
+## PCR 13 components looks good
+```{r}
+library(pls)
+set.seed(500)
+pcr.mod <- pcr(crim~.,data=Boston,subset=train,scale=TRUE,validation="CV")
+summary(pcr.mod)
+```
+```{r}
+validationplot(pcr.mod,val.type="MSEP")
+```
+```{r}
+pcr.pred <- predict(pcr.mod,Boston[test,],ncomp=9)
+pcr.err <- mean((pcr.pred-y.test)^2)
+```
+## to summarize, ridge model performed the best with lowest MRSE, followed by Lasso, then a linear regression
+## best subset did not improve on the full lm either using validation set approach
+```{r}
+lasso.err <- lasso.mod$err
+ridge.err <- ridge.mod$err
+rbind(lm.err, lm.full.err, ridge.err, lasso.err, pcr.err)
+```
+## Chapter 4 question 10
+```{r}
+package="ISLR"
+data(Weekly,package="ISLR")
+summary(Weekly)
+```
+```{r}
+cor(Weekly[,-c(1,9)])
+```
+## all pairwise comparisons of the predictors with the color denoting the direction. almost no trend here
+```{r}
+pairs(Weekly[-(8:9)],col=Weekly$Direction)
+```
+## Plotting the predictors against the `Today` variable. no trend here
+```{r}
+par(mfcol=c(3,2))
+predictors <- c(paste0("Lag",1:5),"Volume")
+for (p in predictors){
+  plot(Weekly[,p],Weekly[,"Today"],
+       ylab="Today",
+       xlab=p,
+       col=Weekly[,"Direction"])
+}
+```
+## 10(b)
+
+```{r}
+glm.fit <- glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 + Volume,data=Weekly, family=binomial)
+summary(glm.fit)
+```
+## only lag 2 is statistically significant, dont really do anything for us here. since we got 6 predictors
+## 10(c)
+
+```{r}
+glm.probs <- predict(glm.fit,type="response")
+glm.pred <- rep("Down",nrow(Weekly))
+glm.pred[glm.probs > .5] <- "Up"
+table(glm.pred,Weekly$Direction) #confusion table
+```
+## the logistic regression is making false positive and false negative prediction a lot. almost a 50/50 flip coin.
+
+## 10(d)
+```{r}
+train.inds <- Weekly$Year <= 2008
+train.data <- Weekly[train.inds,]
+test.data <- Weekly[!train.inds,]
+test.n <- nrow(test.data)
+lag2.mod <- glm(Direction ~ Lag2, data=Weekly, family=binomial, subset=train.inds)
+summary(lag2.mod)
+```
+
+```{r}
+lag2.pred <- rep("Down",test.n)
+lag2.probs <- predict(glm.fit,test.data,type="response")
+lag2.pred[lag2.probs>.5] <- "Up"
+table(lag2.pred,test.data$Direction)
+```
+```{r}
+sum(lag2.pred==test.data$Direction)/test.n
+```
+## over all correct prediction rate is 0.625. confusion matrix shows a quantifiable improvement.
+
+
+## 10(g)
+```{r}
+library(class)
+set.seed(1)
+train.X <- as.matrix(train.data[,"Lag2"])
+train.Y <- as.matrix(train.data[,"Direction"])
+test.X <- as.matrix(test.data[,"Lag2"])
+test.Y <- as.matrix(test.data[,"Direction"])
+lag2.knn.pred <- knn(train.X,test.X,train.Y,k=1)
+table(lag2.knn.pred,test.Y)
+```
+```{r}
+sum(lag2.knn.pred == test.Y)/test.n
+```
+## K=1 is noisy, it is almost a flip coin. 
+
+## 10(h)
+## the logistic regression model using a training data period from 1990 to 2008, with Lag2 as the only predictorgives us the best prediction
+
+## 10(i)
+## let's play with KNN value
+
+```{r}
+k.vals <- 1:50
+err <- double(50)
+for (k in k.vals){
+  train.X <- as.matrix(train.data[,"Lag2"])
+  train.Y <- as.matrix(train.data[,"Direction"])
+  test.X <- as.matrix(test.data[,"Lag2"])
+  test.Y <- as.matrix(test.data[,"Direction"])
+  lag2.knn.pred <- knn(train.X,test.X,train.Y,k=k)
+  table(lag2.knn.pred,test.Y)
+  err[k]<-sum(lag2.knn.pred == test.Y)/test.n
+}
+plot(k.vals,err,type="b")
+```
+
+## k=1 gives the best result on the test data.
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
