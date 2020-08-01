@@ -3,14 +3,83 @@ title: "PM Take Home Exam"
 author: "Lai Jiang"
 date: "7/18/2020"
 output:
-  pdf_document: 
+  pdf_document:
     latex_engine: xelatex
   word_document: default
+  html_document:
+    df_print: paged
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+
+## Chapter 2 question 10
+##10(a)
+```{r}
+rm(list=ls())
+library(MASS)
+Boston
+?Boston
+```
+##The Boston data frame has 506 rows and 14 columns.
+
+##2(b)
+```{r}
+all_correlations <- cor(Boston)
+print(all_correlations[, 14])
+attach(Boston)
+```
+```{r}
+cols <- c(14, 13, 6, 11, 3, 10)
+pairs(Boston[, cols])
+```
+## It is difficult to discern relationships for most of the variables compare to medv. Lstat and rm shows some promising relationship based on graphical observation
+
+##2(d)
+
+```{r}
+summary(crim)
+summary(tax)
+summary(ptratio)
+
+```
+##if we use crim >40 as an indicator of high crime rate.
+##Area in 381, 419,406,411,415,405 has very high crime rate
+##Area in 491,490,489,493,492 has very high tax rate of 711 per 10k property value
+##Area in 356,355 has the highest Pupil-teacher ratio of 22.
+
+##2(e)
+```{r}
+table(chas)
+```
+##About 35 areas are bound to the Charles river
+
+##2(f)
+```{r}
+summary(ptratio)
+```
+##The median ptratio is 19.05
+
+##2(g)
+
+```{r}
+which(medv == min(medv))
+```
+
+## Area 399 and 406 has the lowest medv
+##These areas typically have close to max measured lstat, percentage of black population, high pt ratio, high tax rate,  high accessibility to highway(maybe indicating they are near downtown), close to min value of weighted mean of distances to 5 Boston employment centers, oldest homes,  rms per house in 1st quartile(small housing area),  high pollution level,  high proportion of non-retail business, no proportion of residential land zones for lots over 25000 sq ft. high crime rate above 3rd quartile
+
+##2(h)
+```{r}
+
+which(rm>7)
+```
+```{r}
+which(rm>8)
+```
+## Area with 8 rooms tend to have low lstat,  variable ptratio, tax rate, average distance to employment, low pollution level,  and  relative low crime rate. Some even have residential land zoned for lots over 25,000 sqft.
 
 ## Chapter 3 question 15
 #a
@@ -36,9 +105,9 @@ plot(lm(crim~nox))
 plot(lm(crim~black))
 plot(lm(crim~medv))
 
-?pairs
 
-#most demonstrate a statisticall signifcant relationship with crim, except chas
+
+# most demonstrate a statisticall signifcant relationship with crim, except chas
 ```
 ```{r}
 #b
@@ -354,3 +423,360 @@ plot(k.vals,err,type="b")
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 
+##Chapter 10
+##8(a)
+```{r}
+data(Carseats,package="ISLR")
+set.seed(562)
+train<-sample.int(nrow(Carseats),size=nrow(Carseats)/2)
+```
+## 8(b)
+```{r}
+library(tree)
+tree.mod <- tree(Sales ~ ., data=Carseats, subset=train)
+plot(tree.mod)
+text(tree.mod,pretty=0)
+```
+## From the tree, shelf location is most important in determining sales, price is second most important
+
+```{r}
+y.pred<-predict(tree.mod, Carseats[-train,])
+y.test<-Carseats[-train,]$Sales
+mean((y.pred-y.test)^2)
+```
+## MSE is 5.091466
+
+
+## 8(c)
+```{r}
+set.seed(562)
+tree.mod.cv <- cv.tree(tree.mod)
+tree.mod.cv
+```
+
+```{r}
+plot(tree.mod.cv)
+```
+
+## size with the smallest deviance is 12.
+
+```{r}
+best.size <- tree.mod.cv$size[which.min(tree.mod.cv$dev)]
+prune.mod <- prune.tree(tree.mod,best=best.size)
+y.pred<-predict(prune.mod, Carseats[-train,])
+mean((y.pred-y.test)^2)
+```
+## the prune test did not improve the MSE in this case
+
+##8(d)
+
+```{r}
+library(randomForest)
+set.seed(526)
+bag.mod <- randomForest(Sales ~ ., data=Carseats, subset=train, mtry=(ncol(Carseats)-1), importance=TRUE)
+y.pred<-predict(bag.mod,Carseats[-train,])
+mean((y.pred-y.test)^2)
+```
+## MSE is improved by bagging method
+
+```{r}
+importance(bag.mod)
+```
+## price and shelf location are most important
+
+```{r}
+mtry<-1:10
+errors <- (length(mtry))
+set.seed(526)
+for(i in seq_along(mtry)){
+  m <- mtry[i]
+  rf.mod <- randomForest(Sales ~ ., data=Carseats, subset=train, mtry=m)
+  y.pred<-predict(rf.mod,Carseats[-train,])
+  errors[i]<-mean((y.pred-y.test)^2)
+}
+plot(mtry,errors,type="b",pch="x")
+points(mtry[which.min(errors)],min(errors),col="red",pch="x")
+```
+
+```{r}
+errors
+```
+
+
+## Errors start to flat out at m=6 to 10. errors are 3.194614 3.195120 3.198307 3.237333 3.251480
+
+## Chapter 8 question 11
+
+##11(a)
+```{r}
+data(Caravan,package="ISLR")
+train<-1:1000
+```
+##11(b)
+```{r}
+library(randomForest)
+set.seed(526)
+bag.mod <- randomForest(Purchase ~ ., data=Caravan,subset=train,mtry=ncol(Caravan)-1,shrinkage=0.01)
+imp.vec<-importance(bag.mod)
+head(imp.vec[order(imp.vec,decreasing=TRUE),])
+```
+## MGODGE PPERSAUT  MOSTYPE   MGODPR MOPLHOOG   PBRAND  are most important predictors
+
+```{r}
+y.test <- Caravan[-train,ncol(Caravan)]
+y.pred <- ifelse(predict(bag.mod,Caravan[-train,],type="prob")[,"Yes"]>.2,"Yes","No")
+table(y.pred,y.test)
+```
+
+## portion of ppl predicted to make a purchase actually makes a purchase is 11.67%
+## knn=5
+```{r}
+library(class)
+train.X <- Caravan[train,-ncol(Caravan)]
+train.Y <- Caravan[train,ncol(Caravan)]
+test.X <- Caravan[-train,-ncol(Caravan)]
+knn.pred <- knn(train.X,test.X,train.Y,k=5)
+table(knn.pred, y.test)
+
+```
+## knn=4 prediction sucess is still about 11.42%
+
+##Off-Book problem 1
+```{r}
+rm(list=ls())
+BeautyData= read.csv("C:/Users/Lai Jiang/Desktop/UT MSBA Summer Courses/Predictive Modeling/BeautyData.csv",header=T)
+attach(BeautyData)
+pairs(BeautyData)
+```
+## Beauty Score can be seen has some correlation with Course Evaluation. Let's evaluate the all variables except Course Evals and their effects on Course Evals.
+
+```{r}
+beauty.to.female = lm(BeautyScore~female)
+summary(beauty.to.female)
+```
+## one DOES find a correlation between BeautyScore and female (significant p-value)
+## on average, females tend to be ranked 0.2 higher on beautyScore, but adjusted r-squared suggest that beautyscore is explained in a very limited way by gender despite being statistically significant, 
+
+```{r}
+set.seed(1000)
+BeautyData.mat <- model.matrix(CourseEvals ~ ., BeautyData)
+train<-sample.int(nrow(BeautyData),size=nrow(BeautyData)*.5)
+test<--train
+y.train <- BeautyData$CourseEvals[train]
+y.test <- BeautyData$CourseEvals[test]
+```
+
+## linear models, divide the data into test and sample, use best subsets to select the best train set using BIC
+## then get the MSE on the test set
+```{r}
+require(leaps)
+full.fit <- regsubsets(CourseEvals ~ ., data=BeautyData[train,],nvmax=ncol(BeautyData))
+lm.best.coef <- coef(full.fit,id=which.min(summary(full.fit)$bic))
+lm.pred <- BeautyData.mat[test,names(lm.best.coef)]%*%lm.best.coef
+lm.err <- mean((lm.pred-y.test)^2)
+lm.err
+```
+## MSE is 0.187, decent MSE
+```{r}
+reg.summary = summary(full.fit)
+which.max(reg.summary$adjr2) #best model involves 5 predictors
+coef(full.fit, 5)
+```
+## this linear regression from subsets selection shows that being 'attractive' gives the over rating a 0.30 increase per 1 pt in beautyscore. we can probably ignore the other data since it is more binary 1 or 0 for female, lower, non-english or tenuretrack.
+
+## although the data suggest that professor being more attractive is correlated with higher course evaluation score, however, we cannot discern if the course evaluation score is higher because students really enjoy the course and learn with more passion give the professor is attractive or students penalize professors's course evaluation due to 'unattractiveness' of the professor despite the professor giving best effort to teach the students.
+
+
+
+##Off-Book problem 2
+
+```{r}
+rm(list=ls())
+MidCity= read.csv("C:/Users/Lai Jiang/Desktop/UT MSBA Summer Courses/Predictive Modeling/MidCity.csv",header=T)
+attach(MidCity)
+n = dim(MidCity)[1]
+```
+##2(1)
+```{r}
+BR = rep(0, n)
+BR[Brick=="Yes"]=1
+dn1 = rep(0,n) 
+dn1[Nbhd==1]=1
+
+dn2 = rep(0,n)
+dn2[Nbhd==2]=1
+
+MidCityModel = lm(Price~dn1+dn2+Offers+SqFt+Brick+Bedrooms+Bathrooms)
+summary(MidCityModel)
+```
+## as we can see, there is a premius of 17297.35 dollars premium on brick houses. Adjusted R2 signifcant for this regression.
+
+
+
+##2(2)
+```{r}
+dn3 = rep(0,n)
+dn3[Nbhd==3]=1
+MidCityModeldn3 = lm(Price~dn2+dn3+Offers+SqFt+Brick+Bedrooms+Bathrooms)
+summary(MidCityModeldn3)
+```
+## the strong adjusted R squared and high dn3 (neighborhood3) coefficient shows that with all things considered equal, houes in dn3 will have a higher premium. it is logical since dn3 is a more modern, newer and more prestigious part of the town.
+
+##2(3)
+```{r}
+MidCityModelbrickdn3 = lm(Price~dn2+Offers+SqFt+Brick*dn3+Bedrooms+Bathrooms)
+summary(MidCityModelbrickdn3)
+```
+## the regression above introduces an interaction variable between neighborhood 3 and brick houses. the introduction variable reduces the premium for brick house from 17297.35 to 13826.47. This suggest that there is a less premium for brick houses in neighborhood 3 compared to the overall premium for a brick house.
+
+##2(4)
+```{r}
+MidCityModelbrickdn1dn2= lm(Price~dn2+dn1+Offers+SqFt+Brick+Bedrooms+Bathrooms)
+summary(MidCityModelbrickdn1dn2)
+```
+
+```{r}
+#combining neighborhood1 and 2 into dn dummy variable col
+dn = rep(0,n)
+dn[Nbhd==1]=1
+dn[Nbhd==2]=1
+MidCityModelbrickdn= lm(Price~dn+Offers+SqFt+Brick+Bedrooms+Bathrooms)
+summary(MidCityModelbrickdn)
+```
+## the regression on the right shows dn1 and dn2 as two separate dummie variables, the second regression shows dn1 and dn2 merged into dn as a single dummie variable. the coeff for dn1 and dn2 are very close with each other on first regression which suggest that they can be combied and still provide a good approximation. the results of the second regression further suggest this by showing dn coeff very close to dn1 and dn2 coeff in first regression. adjusted R square for both regression are very similar are 0.861 and 0.8616. both regression can explain approximately the same amount on the dependent variables. thus dn1 and dn2 can be combined
+
+
+##Off-Book problem 3
+
+##1. Different city has different level of police requirement and the reason for high police presence varies among cities. High crime city requires more cop and cops are there because of high crime. you cannot use high crime city to compare to low crime city.
+
+##2. Researchers isolated the effect of more police on the street for reason unrelated to crime on street-crime. they ask when terrorism alert goes to orange, does the extra police presense decrease street crime. They also checked hypothesis of whether tourists were less likely to visit D.C due to orange terrorist alert level and found that ridership did not diminish so the numbder of victims though decreased by police presence but was not affected by ridership in D.C during orange alert day
+
+##3. they control ridership to see if less tourists were likely to visit D.C. thus decrease the number of of potential victims to street crime and thus could potential cloud the effect of high police presence on street crime
+
+##4 the model decribes the relation between high police presence not due to street crime on the street crime level. it showed that high police presence due to non-crime related reason does decrease the crime by -7.316 with coefficient standard error of 2.877. R2 is .14, so high police presence in this situation is weakly correlated reduction in crime.
+
+
+##off-book problem 4
+```{r}
+library(MASS)
+View(Boston)
+attach(Boston)
+```
+
+#Summary of the data
+```{r}
+summary(Boston)
+```
+#Standardize the x's (the first 3 columns)
+
+```{r}
+Bostonsc = Boston #Create auxiliary copy of the matrix
+```
+```{r}
+library(nnet)
+set.seed(999)
+```
+```{r}
+bnn = nnet(medv ~ crim, #Formula
+           data = Bostonsc, #Data frame with the traning set
+           size=3, #Units in the hidden layer
+           decay=0.1, #Parameter for weight decay
+           linout=T) #Linear output
+```
+```{r}
+fbnn = predict(bnn,Bostonsc) #Gets the models fits for the data
+plot(Bostonsc$crim,Bostonsc$medv) #Dispersion plot of food and price
+oo = order(Bostonsc$crim) #Get the indices that will order the column food
+lines(Bostonsc$crim[oo],fbnn[oo],col="red",lwd=2) #Line of the fits
+abline(lm(medv~crim,Bostonsc)$coef) #Compare with the OLS fit
+
+#What does this mean? Try to interpret looking at the Neural network
+summary(bnn)
+NeuralNetTools::plotnet(bnn)
+```
+```{r}
+set.seed(999)
+bnn = nnet(medv ~ crim, #Formula
+           data = Bostonsc, #Data frame with the traning set
+           size=5, #Units in the hidden layer
+           decay=0.1, #Parameter for weight decay
+           linout=T) #Linear output
+print(summary(bnn))
+```
+## Size and Decay
+
+#Let us modify the number of nodes in the hidden layer and decay values
+
+#Four different fits
+```{r}
+set.seed(999)
+bnn1 = nnet(medv ~ crim,Bostonsc,size=3,decay=.5,linout=T)
+bnn2 = nnet(medv ~ crim,Bostonsc,size=3,decay=.00001,linout=T)
+bnn3 = nnet(medv ~ crim,Bostonsc,size=50,decay=.5,linout=T)
+bnn4 = nnet(medv ~ crim,Bostonsc,size=50,decay=.00001,linout=T)
+```
+```{r}
+temp = data.frame(medv = Bostonsc$medv, crim = Bostonsc$crim) #The data
+#The predictions of each model for the data
+bnnf1 = predict(bnn1,temp)
+bnnf2 = predict(bnn2,temp)
+bnnf3 = predict(bnn3,temp)
+bnnf4 = predict(bnn4,temp)
+```
+#Plotting the fits
+```{r}
+par(mfrow=c(2,2)) #Plot window: 2 row, 2 columns
+```
+
+
+
+```{r}
+plot(Bostonsc$crim,Bostonsc$medv, xlab = "Crim", ylab = "Medv") #Scatterplot
+lines(Bostonsc$crim[oo],bnnf1[oo],lwd=2) #Adding the lines of predicted values
+title("size=3, decay=.5")
+
+plot(Bostonsc$crim,Bostonsc$medv, xlab = "Crim", ylab = "Medv")
+lines(Bostonsc$crim[oo],bnnf2[oo],lwd=2)
+title("size=3, decay=.00001")
+
+plot(Bostonsc$crim,Bostonsc$medv, xlab = "Crim", ylab = "Medv")
+lines(Bostonsc$crim[oo],bnnf3[oo],lwd=2)
+title("size = 50, decay = .5")
+
+plot(Bostonsc$crim,Bostonsc$medv, xlab = "Crim", ylab = "Medv")
+lines(Bostonsc$crim[oo],bnnf4[oo],lwd=2)
+title("size = 50, decay = .00001")
+
+```
+##################################################
+### Iterative Fitting and Random Starting Values
+
+#You can control the number of iterations
+```{r}
+set.seed(999)
+bnn3 = nnet(medv~crim,Bostonsc,size=50,decay=.5,linout=T)
+bnn3 = nnet(medv~crim,Bostonsc,size=50,decay=.5,linout=T,maxit=20)
+bnn3 = nnet(medv~crim,Bostonsc,size=50,decay=.5,linout=T,maxit=1000)
+```
+
+
+#Run one of the models above and then print the result
+```{r}
+bnnf3 = predict(bnn3,temp) #Predicted values for the model
+par(mfrow=c(1,1)) #Plot window: 1 row, 1 column
+plot(Bostonsc$crim,Bostonsc$medv,
+     xlab = "crime", ylab = "medv")
+lines(Bostonsc$crim[oo],bnnf3[oo],lwd=2)
+```
+```{r}
+set.seed(999)
+temp = nnet(medv~crim,Bostonsc,size=2,decay=.001)
+summary(temp) #See the weights
+```
+
+
+##PM problem 5 Final Project
+##For this project with my group. I was first to start a group chat to help all the other members in our group to stay engaged and we carefully selected data together and I was able to analyze the difficulty of the project and what conclusion we are trying to draw from the data.
+##Once we got the wine set data, I help with data selection as well as making sure all the members are ok with the models we will use to present for our project. I also coordinated subsequent meetings with members of our group to ensure everyone is aware of the progress we are making and understand the data analysis and the meaning of the result.
+##Finally, I helped on the PowerPoint design recommendation to make our data presentable.
